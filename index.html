@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<head>
+  <meta charset="utf-8">
+  <script src="https://d3js.org/d3.v4.min.js"></script>
+  <style>
+    body { margin:0;position:fixed;top:0;right:0;bottom:0;left:0; }
+  </style>
+</head>
+
+<body>
+  <script>
+		var width = 700,
+  		  height = 580;
+
+		var svg = d3.select( "body" )
+  		.append( "svg" )
+		  .attr( "width", width )
+		  .attr( "height", height );
+
+    var projection = d3.geoConicConformal()
+      .center([2.454071, 46.279229])
+      .scale(2800)
+      .translate([width/2, height/2])
+
+    var path = d3.geoPath() // d3.geo.path avec d3 version 3
+                 .projection(projection);
+
+    var color = d3.scaleLinear()
+      .range([d3.rgb("#FFFFFF"), d3.rgb('#0000FF')]);
+    
+    d3.csv('grippe.csv', function(data){
+      var maxSum = d3.max(data, function(d){ return parseInt(d.somme2014); });
+      color.domain([0, maxSum]);
+
+      var parseDate = d3.timeParse('%d / %b / %Y');
+      var formatTime = d3.timeFormat('%b/%Y');
+
+      function getDateSum(month_nb, year_nb){
+        var month = String(month_nb) + '/' + String(year_nb);
+
+        data.forEach(function(d){
+          dates = Object.getOwnPropertyNames(d).slice(0, -1);
+          var sum = 0;
+          dates.forEach(function(v){
+            if (v.substring(3) == month){
+              sum += parseInt(d[v]);
+            }
+          });
+          d.somme = sum;
+        });
+        maxSum = d3.max(data, function(d){ return parseInt(d.somme); });
+        color.domain([0, maxSum]);
+      };
+
+      getDateSum(11,14);
+
+      d3.json('regions.json', function(json){
+        var regions = json.features;
+
+        for(var i = 0; i < data.length; i++){
+          var somme = data[i].somme;
+
+          for(var j = 0; j < regions.length; j++){
+            if( regions[j].properties.nom == data[i].region){
+              regions[j].properties.somme = somme;
+            }
+          }
+        }
+
+        svg.selectAll("path")
+           .data(json.features)
+           .enter()
+           .append("path")
+           .attr("d", path)
+           .style('fill', function(d){ 
+
+            if (d.properties.somme == undefined ){
+              return 'grey';
+            }
+            else {
+              return color(parseInt(d.properties.somme)); 
+            } 
+          });
+      });
+
+    });
+
+
+  </script>
+</body>
